@@ -97,13 +97,13 @@ class ProcessManifestContentAndFileChanges {
 
     LinkedList<File> unexploredDirs = new LinkedList<File>();
     List<String> relativePaths = new ArrayList<String>();
-    
+
     unexploredDirs.add(baseFolder);
 
     boolean haveFilteredTablesDir = false;
     boolean haveFilteredAssetsCsvDir = false;
     boolean haveFilteredTableInitFile = false;
-    
+
     while (!unexploredDirs.isEmpty()) {
       File exploring = unexploredDirs.removeFirst();
       File[] files = exploring.listFiles();
@@ -146,7 +146,7 @@ class ProcessManifestContentAndFileChanges {
       }
     }
 
-    return relativePaths; 
+    return relativePaths;
   }
 
   private static List<String> filterInTableIdFiles(List<String> relativePaths, String tableId) {
@@ -182,7 +182,7 @@ class ProcessManifestContentAndFileChanges {
    * <p>
    * If the baseFolder exists but is not a directory, logs an error and returns an
    * empty list.
-   * 
+   *
    * @param baseFolder
    * @param excludingNamedItemsUnderFolder
    *          can be null--nothing will be excluded. Should be relative to the
@@ -589,7 +589,9 @@ class ProcessManifestContentAndFileChanges {
     String basePath = ODKFileUtils.getAppFolder(sc.getAppName());
 
     // if the file is a placeholder on the server, then don't do anything...
-    if (entry.contentLength == 0) {
+    // in the case that the local file exists and its content length is also 0
+    // then the file is indeed empty and not a placeholder
+    if (entry.contentLength == 0 && localFile.exists() && localFile.length() != 0) {
       throw new IncompleteServerConfigFileBodyMissingException("Missing config file body");
     }
     // now we need to look through the manifest and see where the files are
@@ -615,15 +617,15 @@ class ProcessManifestContentAndFileChanges {
         throw new ClientDetectedVersionMismatchedServerResponseException("Manifest entry has an invalid downloadUrl");
       }
 
-      // Before we try dl'ing the file, we have to make the folder,
-      // b/c otherwise if the folders down to the path have too many non-
-      // existent folders, we'll get a FileNotFoundException when we open
-      // the FileOutputStream.
-      String folderPath = localFile.getParent();
-      ODKFileUtils.createFolder(folderPath);
       if (!localFile.exists()) {
         // the file doesn't exist on the system
-        // filesToDL.add(localFile);
+        // Before we try dl'ing the file, we have to make the folder,
+        // b/c otherwise if the folders down to the path have too many non-
+        // existent folders, we'll get a FileNotFoundException when we open
+        // the FileOutputStream.
+        String folderPath = localFile.getParent();
+        ODKFileUtils.createFolder(folderPath);
+
         boolean success = false;
         try {
           sc.getSynchronizer().downloadFile(localFile, uri);
@@ -644,7 +646,7 @@ class ProcessManifestContentAndFileChanges {
           log.e(LOGTAG, "database access error (ignoring)");
         }
         if (md5hash == null) {
-          // file exists, but no record of what is on the server
+          // file exists, but local db has no record of the hash
           // compute local value
           hasUpToDateEntry = false;
           md5hash = ODKFileUtils.getMd5Hash(sc.getAppName(), localFile);
@@ -657,7 +659,7 @@ class ProcessManifestContentAndFileChanges {
           boolean success = false;
           try {
             sc.getSynchronizer().downloadFile(localFile, uri);
-            updateFileSyncETag(uri, tableId, localFile.lastModified(), md5hash);
+            updateFileSyncETag(uri, tableId, localFile.lastModified(), entry.md5hash);
             success = true;
           } finally {
             if ( !success ) {
