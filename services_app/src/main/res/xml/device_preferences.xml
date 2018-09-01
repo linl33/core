@@ -31,7 +31,6 @@
 				android:defaultValue="@string/default_splash_path"
 				android:title="@string/splash_path"
 				android:dependency="common.show_splash"
-				android:layout="?android:attr/preferenceLayoutChild"
 				android:persistent="false"/>
 	</PreferenceCategory>
 </PreferenceScreen>
